@@ -5,6 +5,7 @@ import * as L from 'leaflet';
 import WorldmapCtrl from './worldmap_ctrl';
 import { ColorModes } from './model';
 
+// old but gold: https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png
 const tileServers = {
   'CARTO Positron': {
     url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
@@ -14,7 +15,7 @@ const tileServers = {
     subdomains: 'abcd',
   },
   'CARTO Dark': {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> ' +
       '&copy; <a href="https://carto.com/about-carto/" target="_blank" rel="noopener">CARTO</a>',
@@ -26,15 +27,20 @@ export default class WorldMap {
   ctrl: WorldmapCtrl;
   mapContainer: any;
   circles: any[];
+  geomaps: any[];
+  geocolors: any[];
   map: any;
   legend: any;
   overlay: any;
   circlesLayer: any;
+  geoMapsLayer: any;
 
   constructor(ctrl, mapContainer) {
     this.ctrl = ctrl;
     this.mapContainer = mapContainer;
     this.circles = [];
+    this.geomaps = [];
+    this.geocolors = [];
   }
 
   createMap() {
@@ -82,6 +88,11 @@ export default class WorldMap {
 
     console.info('Drawing circles');
     this.drawCircles();
+
+    if (this.ctrl.settings.enableGeoJson && this.ctrl.settings.geoJsonLink !== '') {
+      console.info('Drawing maps');
+      this.drawGeoMaps();
+    }
 
     this.drawCustomAttribution();
 
@@ -169,11 +180,11 @@ export default class WorldMap {
     const latRange = this.ctrl.settings.overlayRangeLatitude
         .split(',')
         .slice(0, 2)
-        .map(x => Number(x)),
+        .map((x) => Number(x)),
       lngRange = this.ctrl.settings.overlayRangeLongitude
         .split(',')
         .slice(0, 2)
-        .map(x => Number(x));
+        .map((x) => Number(x));
     var imageBounds = [
       [latRange[0], lngRange[0]],
       [latRange[1], lngRange[1]],
@@ -200,9 +211,29 @@ export default class WorldMap {
     return !_.isEqual(locations, dataPoints);
   }
 
+  needToRedrawGeoMaps(maps, colors) {
+    // verify if the previous displayed colors and maps have been changed.
+    console.log('Checking if geomaps need to be redrawn <-------');
+    if ((this.geomaps.length === 0 && maps.length > 0) || (this.geocolors.length === 0 && colors.length > 0)) {
+      return true;
+    }
+
+    if (this.geomaps.length !== maps.length || this.geocolors.length !== colors.length) {
+      return true;
+    }
+
+    if (
+      JSON.stringify(this.geomaps) !== JSON.stringify(maps) ||
+      JSON.stringify(this.geocolors) !== JSON.stringify(colors)
+    ) {
+      return true;
+    }
+    return false;
+  }
+
   filterEmptyAndZeroValues(data) {
     const countBefore = data.length;
-    data = _.filter(data, o => {
+    data = _.filter(data, (o) => {
       return !(this.ctrl.settings.hideEmpty && _.isNil(o.value)) && !(this.ctrl.settings.hideZero && o.value === 0);
     });
     const countAfter = data.length;
@@ -221,6 +252,67 @@ export default class WorldMap {
     }
   }
 
+  clearGeoMaps() {
+    if (this.geoMapsLayer) {
+      this.geoMapsLayer.clearLayers();
+      this.removeGeoMaps();
+    }
+  }
+
+  drawGeoMaps() {
+    const colors = this.ctrl.geocolors;
+    const maps = this.ctrl.geomaps;
+
+    // verify if data have been changed
+    if (this.needToRedrawGeoMaps(maps.features, colors)) {
+      // if yes
+      // Clear actual layer
+      this.clearGeoMaps();
+
+      // Reset geomaps value
+      this.geomaps = maps.features;
+      this.geocolors = colors;
+
+      console.log('Updating GeoMaps <-----');
+
+      if (this.ctrl.settings.enableGeoColors && this.ctrl.settings.geoColorsLink !== '') {
+        this.geoMapsLayer = (window as any).L.geoJSON(maps.features, {
+          style: function (feature) {
+            let right_color = (name) => {
+              for (let value of colors.colorList) {
+                if (value.name === name) {
+                  return value.color;
+                }
+              }
+              return '#b1bdd2'; // Default color
+            };
+            return {
+              fillColor: right_color(feature.properties.NAME),
+              weight: 2,
+              opacity: 1,
+              color: 'black',
+              dashArray: '2',
+              fillOpacity: 0.5,
+            };
+          },
+        }).addTo(this.map);
+      } else {
+        var myStyle = {
+          color: '#b1bdd2',
+          weight: 2,
+          opacity: 0.7,
+        };
+        this.geoMapsLayer = (window as any).L.geoJSON(maps.features, {
+          style: myStyle,
+        }).addTo(this.map);
+      }
+      this.forcedDrawingCircles(); // This is necessary to have circles on top of generated geomaps
+    } else {
+      console.log('Update on geomaps not necessary');
+    }
+    this.ctrl.resetGeoMaps();
+  }
+
   drawCircles() {
     const data = this.filterEmptyAndZeroValues(this.ctrl.data);
     if (this.needToRedrawCircles(data)) {
@@ -233,11 +325,18 @@ export default class WorldMap {
     }
   }
 
+  forcedDrawingCircles() {
+    const data = this.filterEmptyAndZeroValues(this.ctrl.data);
+    console.info('Creating circles');
+    this.clearCircles();
+    this.createCircles(data);
+  }
+
   createCircles(data) {
     console.log('createCircles: begin');
     const circles: any[] = [];
     const circlesByKey = {};
-    data.forEach(dataPoint => {
+    data.forEach((dataPoint) => {
       // Todo: Review: Is a "locationName" really required
       //       just for displaying a circle on a map?
       if (!dataPoint.locationName) {
@@ -263,7 +362,7 @@ export default class WorldMap {
 
   updateCircles(data) {
     const circlesByKey = {};
-    data.forEach(dataPoint => {
+    data.forEach((dataPoint) => {
       // Todo: Review: Is a "locationName" really required
       //       just for displaying a circle on a map?
       if (!dataPoint.locationName) {
@@ -303,7 +402,7 @@ export default class WorldMap {
 
   updateCircle(dataPoint) {
     // Find back circle object by data point key.
-    const circle = _.find(this.circles, cir => {
+    const circle = _.find(this.circles, (cir) => {
       return cir.options.location === dataPoint.key;
     });
 
@@ -382,7 +481,7 @@ export default class WorldMap {
     // Attach "onclick" event to data point linking.
     if (linkUrl) {
       const clickthroughOptions = this.ctrl.settings.clickthroughOptions;
-      circle.on('click', evt => {
+      circle.on('click', (evt) => {
         if (clickthroughOptions && clickthroughOptions.windowName) {
           window.open(linkUrl, clickthroughOptions.windowName);
         } else {
@@ -401,7 +500,7 @@ export default class WorldMap {
       autoWidth: this.ctrl.settings.autoWidthLabels,
     });
 
-    circle.on('mouseover', evt => {
+    circle.on('mouseover', (evt) => {
       const layer = evt.target;
       layer.bringToFront();
       circle.openPopup();
@@ -552,6 +651,10 @@ export default class WorldMap {
 
   removeCircles() {
     this.map.removeLayer(this.circlesLayer);
+  }
+
+  removeGeoMaps() {
+    this.map.removeLayer(this.geoMapsLayer);
   }
 
   setZoom(zoomFactor) {

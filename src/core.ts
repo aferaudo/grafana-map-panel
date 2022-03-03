@@ -24,6 +24,56 @@ export class WorldmapCore {
     this.dataFormatter = new DataFormatter(ctrl);
   }
 
+  acquireGeoJSON() {
+    /*
+     * Request geojson files to an HTTP server
+     * Two type of files:
+     *  - data.json: it contains the shape data to visualise
+     *  - colors.json: it contains the colors for each data
+     */
+    console.log(this.settings.geoJsonLink);
+    if (this.settings.enableGeoJson) {
+      console.info('Acquiring geomaps data');
+
+      console.log('Requesting geomaps');
+      // No-cache
+      // if (this.settings.geoJsonLink !== '') {
+      //   $.getJSON(this.settings.geoJsonLink, { _: new Date().getTime() }, function(result, status) {
+      //     console.log('Geomaps');
+      //     console.log(result);
+      //   }).then(this.setGeoMaps.bind(this));
+
+      //   if (this.settings.enableGeoColors && this.settings.geoColorsLink !== '') {
+      //     $.getJSON(this.settings.geoColorsLink, { _: new Date().getTime() }, function(result, status) {
+      //       console.log('GeoColors');
+      //       console.log(result);
+      //     }).then(this.setGeoColors.bind(this));
+      //   }
+      // }
+      if (this.settings.geoJsonLink !== '') {
+        $.ajax({
+          dataType: 'json',
+          url: this.settings.geoJsonLink,
+          success: function (result) {
+            console.log('Geomaps');
+            console.log(result);
+          },
+        }).then(this.setGeoMaps.bind(this));
+      }
+
+      if (this.settings.enableGeoColors && this.settings.geoColorsLink !== '') {
+        $.ajax({
+          dataType: 'json',
+          url: this.settings.geoColorsLink,
+          success: function (result) {
+            console.log('GeoColors');
+            console.log(result);
+          },
+        }).then(this.setGeoColors.bind(this));
+      }
+    }
+  }
+
   acquireLocations() {
     /*
      * Acquire location information from different sources.
@@ -98,6 +148,14 @@ export class WorldmapCore {
   setLocations(locations: any[] = []) {
     //console.log('Setting locations:', locations);
     this.ctrl.setLocations(locations);
+  }
+
+  setGeoMaps(geomaps: any[] = []) {
+    this.ctrl.setGeoMaps(geomaps);
+  }
+
+  setGeoColors(geocolor: any[] = []) {
+    this.ctrl.setGeoColors(geocolor);
   }
 
   decodeData(dataList, dataFormat) {

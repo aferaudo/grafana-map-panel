@@ -335,7 +335,34 @@
     <h3 class="main-section-heading">Visual options</h3>
 
     <!-- 1st column -->
-    <div class="section editor-column width-24">
+    <div class="section">
+
+        <div class="gf-form-group">
+            <h5>Geojson Visualization</h5>
+
+            <gf-form-switch class="gf-form" label="Enable Geojson" label-class="width-10" checked="ctrl.panel.enableGeoJson">
+            </gf-form-switch>
+
+            <ng-thing ng-show="ctrl.panel.enableGeoJson">
+                <div class="gf-form">
+                    <label class="gf-form-label width-10">GeoJson Link</label>
+                    <input type="text" class="input-small gf-form-input" ng-model="ctrl.panel.geoJsonLink"
+                           ng-change="ctrl.updateMapCenter()"
+                           placeholder="http://localhost/data.json" ng-change="ctrl.refresh()" ng-model-onblur/>
+                </div>
+            </ng-thing>
+
+            <gf-form-switch class="gf-form" label="Enable GeoColors" label-class="width-10" checked="ctrl.panel.enableGeoColors">
+            </gf-form-switch>
+            <ng-thing ng-show="ctrl.panel.enableGeoColors">
+                <div class="gf-form">
+                    <label class="gf-form-label width-10">GeoJson Link</label>
+                    <input type="text" class="input-small gf-form-input width-10" ng-model="ctrl.panel.geoColorsLink"
+                           ng-change="ctrl.updateMapCenter()"
+                           placeholder="http://localhost/colors.json" ng-change="ctrl.refresh()" ng-model-onblur/>
+                </div>
+            </ng-thing>
+        </div>
 
         <div class="gf-form-group">
             <h5>Center and zoom level</h5>

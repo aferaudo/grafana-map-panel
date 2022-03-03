@@ -15,6 +15,10 @@ import appEvents from 'grafana/app/core/app_events';
 const panelDefaults = {
   maxDataPoints: 1,
   mapFitData: false,
+  enableGeoJson: false,
+  geoJsonLink: null,
+  enableGeoColors: false,
+  geoColorsLink: null,
   mapCenter: '(0°, 0°)',
   mapCenterLatitude: 0,
   mapCenterLongitude: 0,
@@ -89,6 +93,8 @@ export default class WorldmapCtrl extends MetricsPanelCtrl {
   static templateUrl = 'partials/module.html';
 
   locations: any;
+  geomaps: any; // Hera feature
+  geocolors: any; // Hera feature
   tileServer = '';
   saturationClass = '';
   map: any;
@@ -222,11 +228,13 @@ export default class WorldmapCtrl extends MetricsPanelCtrl {
     /*
      * Conditionally acquire location information from out-of-band data source.
      */
-
     if (this.map && !reload) {
       return;
     }
-
+    if (!this.geomaps || this.geomaps.empty) {
+      console.log('Reloading GeoJSON CONTROL!!!!!!');
+      this.core.acquireGeoJSON();
+    }
     // Load locations from snapshot.
     if (this.panel.snapshotLocationData) {
       this.locations = this.panel.snapshotLocationData;
@@ -250,6 +258,20 @@ export default class WorldmapCtrl extends MetricsPanelCtrl {
     this.refreshSafe();
   }
 
+  setGeoMaps(res: any[] = []) {
+    this.geomaps = res;
+    console.log('setting geomaps');
+    console.info(res);
+    this.refreshSafe();
+  }
+
+  setGeoColors(res: any[] = []) {
+    this.geocolors = res;
+    console.log('setting geocolors');
+    console.info(res);
+    this.refreshSafe();
+  }
+
   refreshSafe() {
     /*
      * Conditionally refresh the plugin, but not if it's still loading.
@@ -263,7 +285,6 @@ export default class WorldmapCtrl extends MetricsPanelCtrl {
   onRefresh() {
     console.info('Refreshing panel. initializing=', this.initializing);
     this.errors.reset('data');
-
     if (
       !this.loading &&
       !this.initializing &&
@@ -380,7 +401,7 @@ export default class WorldmapCtrl extends MetricsPanelCtrl {
 
   updateThresholdData() {
     // FIXME: Isn't `this.data` actually an array?
-    this.data.thresholds = this.settings.thresholds.split(',').map(strValue => {
+    this.data.thresholds = this.settings.thresholds.split(',').map((strValue) => {
       return Number(strValue.trim());
     });
     this.adjustColorCount(this.data.thresholds);
@@ -443,12 +464,16 @@ export default class WorldmapCtrl extends MetricsPanelCtrl {
       if (!ctrl.data) {
         return;
       }
-
+      console.log(ctrl.settings.enableGeoJson);
       // delay first render as the map panel sizing is bugged first render even though the element has correct height
       if (firstRender) {
         firstRender = false;
         setTimeout(render, 100);
         return;
+      }
+      if (!ctrl.geomaps || ctrl.geomaps.length === 0) {
+        console.log('new rendering so geoLoading<----');
+        ctrl.core.acquireGeoJSON();
       }
 
       const mapContainer = elem.find('.mapcontainer');
@@ -471,6 +496,9 @@ export default class WorldmapCtrl extends MetricsPanelCtrl {
 
       if (!ctrl.map.overlay && ctrl.panel.enableOverlay) {
         ctrl.map.createOverlay();
+      }
+      if (ctrl.settings.enableGeoJson && ctrl.settings.geoJsonLink !== '') {
+        ctrl.map.drawGeoMaps();
       }
 
       ctrl.map.drawCircles();
@@ -502,6 +530,7 @@ export default class WorldmapCtrl extends MetricsPanelCtrl {
     this.errors.resetAll();
     this.resetData();
     this.resetLocations();
+    this.resetGeoMaps();
   }
 
   resetData() {
@@ -512,9 +541,12 @@ export default class WorldmapCtrl extends MetricsPanelCtrl {
   }
 
   resetLocations() {
-    //console.log('resetLocations');
     this.locations = [];
     this.panel.snapshotLocationData = undefined;
+  }
+
+  resetGeoMaps() {
+    this.geomaps = [];
   }
 
   /* Actions with rendering */

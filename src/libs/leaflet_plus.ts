@@ -9,7 +9,7 @@ import { Popup } from 'leaflet';
 // and set the width of a opened popup automatically.
 Popup.prototype.options.autoWidth = true;
 
-Popup.prototype._updateLayout = function() {
+Popup.prototype._updateLayout = function () {
   var container = this._contentNode,
     style = container.style;
 

@@ -305,6 +305,27 @@ The image overlay's opacity can be controlled (0=completely transparent, 1=compl
 
 Specify the limits of the image in the map. Enter the minimum and maximum latitude, and the minimum and maximum longitude, separated by a comma. These numbers specify the extent of the overlay.
 
+### GEOMAP
+It is possible to draw a shape on the map, by enabling the geojson feature.
+
+<img src="src/images/enableGeojson.png"/>
+
+To make it work you need to specify a json server which provides the geojson file containing the shapes you want to show.
+
+<img src="src/images/geojsonEnabled.png"/>
+
+In addition, you may color each of the shape by enabling the geocolor feature.
+
+<img src="src/images/enableGeocolors.png"/>
+<img src="src/images/geocolorsEnabled.png"/>
+
+
+The following is an example of color definition in json format:
+
+``
+{"colorList": [{"name": "MO", "color": "#91cf60"}, {"name": "BO", "color": "#91cf60"}, {"name": "RA", "color": "#91cf60"}, {"name": "FC", "color": "#FFFF7F"}, {"name": "FE", "color": "#FFFF7F"}, {"name": "RN", "color": "#FFFF7F"}, {"name": "confinati_sup", "color": "#91cf60"}]}
+``
+
 ### CHANGELOG
 
 The latest changes can be found here: [CHANGELOG.md](https://github.com/panodata/grafana-map-panel/blob/master/CHANGELOG.md)
